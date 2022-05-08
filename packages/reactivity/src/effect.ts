@@ -60,7 +60,6 @@ export function track(target, type, key) {
   if (!dep) {
     depsMap.set(key, (dep = new Set()));
   }
-  console.log(key);
   trackEffects(dep);
   //   let shouldTrack = !dep.has(activeEffect);
   //   // 属性记录了effect,应该让effect也记录它被哪些属性收集过
@@ -72,7 +71,6 @@ export function track(target, type, key) {
 }
 // 收集effects
 export function trackEffects(dep) {
-  console.log(activeEffect);
   if (!activeEffect) return;
   let shouldTrack = !dep.has(activeEffect);
   // 属性记录了effect,应该让effect也记录它被哪些属性收集过

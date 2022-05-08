@@ -25,12 +25,14 @@ var VueReactivity = (() => {
     activeEffect: () => activeEffect,
     computed: () => computed,
     effect: () => effect,
+    isReactive: () => isReactive,
     mutableHandlers: () => mutableHandlers,
     reactive: () => reactive,
     track: () => track,
     trackEffects: () => trackEffects,
     trigger: () => trigger,
-    triggerEffects: () => triggerEffects
+    triggerEffects: () => triggerEffects,
+    watch: () => watch
   });
 
   // packages/reactivity/src/effect.ts
@@ -85,11 +87,9 @@ var VueReactivity = (() => {
     if (!dep) {
       depsMap.set(key, dep = /* @__PURE__ */ new Set());
     }
-    console.log(key);
     trackEffects(dep);
   }
   function trackEffects(dep) {
-    console.log(activeEffect);
     if (!activeEffect)
       return;
     let shouldTrack = !dep.has(activeEffect);
@@ -130,7 +130,7 @@ var VueReactivity = (() => {
   // packages/reactivity/src/baseHandler.ts
   var mutableHandlers = {
     get(target, key, receiver) {
-      if (key == "_v_isReactive" /* IS_REACTIVE */)
+      if (key == "__v_isReactive" /* IS_REACTIVE */)
         return true;
       track(target, "get", key);
       const result = Reflect.get(target, key, receiver);
@@ -151,14 +151,17 @@ var VueReactivity = (() => {
 
   // packages/reactivity/src/reactive.ts
   var ReactiveFlags = /* @__PURE__ */ ((ReactiveFlags2) => {
-    ReactiveFlags2["IS_REACTIVE"] = "_v_isReactive";
+    ReactiveFlags2["IS_REACTIVE"] = "__v_isReactive";
     return ReactiveFlags2;
   })(ReactiveFlags || {});
+  function isReactive(target) {
+    return !!(target && target["__v_isReactive" /* IS_REACTIVE */]);
+  }
   var reactiveMap = /* @__PURE__ */ new WeakMap();
   function reactive(target) {
     if (!isObject(target))
       return target;
-    if (target["_v_isReactive" /* IS_REACTIVE */])
+    if (target["__v_isReactive" /* IS_REACTIVE */])
       return target;
     if (reactiveMap.has(target))
       return reactiveMap.get(target);
@@ -208,6 +211,42 @@ var VueReactivity = (() => {
     }
     return new ComputedRefImpl(getter, setter);
   };
+
+  // packages/reactivity/src/watch.ts
+  function traversal(source, map = /* @__PURE__ */ new WeakMap()) {
+    if (!isObject(source))
+      return source;
+    if (map.has(source))
+      return source;
+    map.set(source, {});
+    for (let key in source) {
+      traversal(source[key], map);
+    }
+    return source;
+  }
+  function watch(source, cb) {
+    let getter;
+    if (isReactive(source)) {
+      getter = () => traversal(source);
+    } else if (isFunction(source)) {
+      getter = source;
+    } else {
+      return;
+    }
+    let oldValue, cleanup;
+    const onCleanup = (fn) => {
+      cleanup = fn;
+    };
+    const scheduler = () => {
+      cleanup && cleanup();
+      const newValue = effect2.run();
+      cb(newValue, oldValue, onCleanup);
+      oldValue = newValue;
+    };
+    const effect2 = new ReactiveEffect(getter, scheduler);
+    oldValue = effect2.run();
+    return effect2;
+  }
   return __toCommonJS(src_exports);
 })();
 //# sourceMappingURL=reactivity.global.js.map

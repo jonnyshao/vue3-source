@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="./reactivity.global.js"></script>
+    <script src="../../../node_modules/vue/dist/vue.global.js"></script>
+    <script>
+      const { effect, reactive, computed, watch } = VueReactivity;
+      const data = { name: "johnny", age: 18, address: { num: 10 } };
+      const state = reactive(data);
+      let i = 2000;
+      const getData = (time) => {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(time);
+          }, time);
+        });
+      };
+      //   竟态测试
+      watch(
+        () => state.address.num,
+        async (newValue, oldValue, onCleanup) => {
+          let clear = false;
+          onCleanup(() => {
+            clear = true;
+          });
+          i -= 1000;
+          const result = await getData(i);
+          console.log("clear", clear);
+          !clear && (app.innerHTML = result);
+          console.log(newValue, oldValue);
+        }
+      );
+      state.address.num = 100;
+      state.address.num = 101;
+    </script>
+  </body>
+</html>
