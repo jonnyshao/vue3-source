@@ -27,7 +27,11 @@ var VueReactivity = (() => {
     effect: () => effect,
     isReactive: () => isReactive,
     mutableHandlers: () => mutableHandlers,
+    proxyRefs: () => proxyRefs,
     reactive: () => reactive,
+    ref: () => ref,
+    toRef: () => toRef,
+    toRefs: () => toRefs,
     track: () => track,
     trackEffects: () => trackEffects,
     trigger: () => trigger,
@@ -108,12 +112,14 @@ var VueReactivity = (() => {
     }
   }
   function triggerEffects(effects) {
-    effects = new Set(effects);
-    effects.forEach((effect2) => {
-      if (effect2 !== activeEffect) {
-        effect2.scheduler ? effect2.scheduler() : effect2.run();
-      }
-    });
+    if (effects.size) {
+      effects = new Set(effects);
+      effects.forEach((effect2) => {
+        if (effect2 !== activeEffect) {
+          effect2.scheduler ? effect2.scheduler() : effect2.run();
+        }
+      });
+    }
   }
   function cleanupEffect(effect2) {
     const { deps } = effect2;
@@ -246,6 +252,75 @@ var VueReactivity = (() => {
     const effect2 = new ReactiveEffect(getter, scheduler);
     oldValue = effect2.run();
     return effect2;
+  }
+
+  // packages/reactivity/src/ref.ts
+  function toReactive(value) {
+    return isObject(value) ? reactive(value) : value;
+  }
+  function isRef(r) {
+    return !!(r && r.__v_isRef === true);
+  }
+  var RefImpl = class {
+    constructor(rawValue) {
+      this.rawValue = rawValue;
+      this.__v_isReadonly = true;
+      this.__v_isRef = true;
+      this.dep = /* @__PURE__ */ new Set();
+      this._value = toReactive(rawValue);
+    }
+    get value() {
+      trackEffects(this.dep);
+      return this._value;
+    }
+    set value(newValue) {
+      if (newValue != this.rawValue) {
+        this._value = toReactive(newValue);
+        this.rawValue = newValue;
+        triggerEffects(this.dep);
+      }
+    }
+  };
+  var ObjectRefImpl = class {
+    constructor(object, key) {
+      this.object = object;
+      this.key = key;
+    }
+    get value() {
+      return this.object[this.key];
+    }
+    set value(newValue) {
+      this.object[this.key] = newValue;
+    }
+  };
+  function ref(value) {
+    return new RefImpl(value);
+  }
+  function toRef(object, key) {
+    return new ObjectRefImpl(object, key);
+  }
+  function toRefs(value) {
+    const result = Array.isArray(value) ? new Array(value.length) : {};
+    for (let key in value) {
+      result[key] = toRef(value, key);
+    }
+    return result;
+  }
+  function proxyRefs(object) {
+    return new Proxy(object, {
+      get(target, key, receiver) {
+        const r = Reflect.get(target, key, receiver);
+        return isRef(r) ? r.value : r;
+      },
+      set(target, key, value, receiver) {
+        let oldValue = target[key];
+        if (isRef(oldValue)) {
+          oldValue.value = value;
+          return true;
+        }
+        return Reflect.set(target, key, value, receiver);
+      }
+    });
   }
   return __toCommonJS(src_exports);
 })();

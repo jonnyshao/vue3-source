@@ -91,16 +91,18 @@ export function trigger(target, type, key, newValue, oldValue) {
   }
 }
 // 触发effects
-export function triggerEffects(effects) {
-  // copy一份 避免清除的时候产生死循环
-  effects = new Set<ReactiveEffect>(effects);
-  effects.forEach((effect) => {
-    // 如果同一个effect回调在执行时 修改了变量值，会再次执行造成递归，第一次执行和更新执行不能是同一个
+export function triggerEffects(effects: Set<ReactiveEffect>) {
+  if (effects.size) {
+    // copy一份 避免清除的时候产生死循环
+    effects = new Set<ReactiveEffect>(effects);
+    effects.forEach((effect) => {
+      // 如果同一个effect回调在执行时 修改了变量值，会再次执行造成递归，第一次执行和更新执行不能是同一个
 
-    if (effect !== activeEffect) {
-      effect.scheduler ? effect.scheduler() : effect.run();
-    }
-  });
+      if (effect !== activeEffect) {
+        effect.scheduler ? effect.scheduler() : effect.run();
+      }
+    });
+  }
 }
 // 清除effects
 function cleanupEffect(effect) {
