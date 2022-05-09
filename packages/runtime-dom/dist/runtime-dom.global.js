@@ -1,4 +1,37 @@
-var VueReactivity = (() => {
+var VueRuntimeDom = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // packages/runtime-dom/src/index.ts
+  var src_exports = {};
+  __export(src_exports, {
+    render: () => render
+  });
+
+  // packages/runtime-core/src/renderer.ts
+  function createRenderer(renderOptions2) {
+    function render2(vnode, container) {
+    }
+    return {
+      render: render2
+    };
+  }
+
   // packages/runtime-dom/src/nodeOps.ts
   var nodeOps = {
     insert(child, parent, anchor = null) {
@@ -34,7 +67,12 @@ var VueReactivity = (() => {
   };
 
   // packages/runtime-dom/src/modules/attr.ts
-  function patchAttr() {
+  function patchAttr(el, key, nextValue) {
+    if (nextValue) {
+      el.setAttribute(key, nextValue);
+    } else {
+      el.removeAttribute(key);
+    }
   }
 
   // packages/runtime-dom/src/modules/class.ts
@@ -55,12 +93,16 @@ var VueReactivity = (() => {
   function patchEvent(el, eventName, nextValue) {
     let invokers = el._vei || (el._vei = {});
     let exits = invokers[eventName];
-    if (exits) {
+    if (exits && nextValue) {
+      exits.value = nextValue;
     } else {
       let event = eventName.slice(2).toLowerCase();
       if (nextValue) {
         const invoker = invokers[eventName] = createInvoker(nextValue);
         el.addEventListener(event, invoker);
+      } else if (exits) {
+        el.removeEventListener(event, exits);
+        invokers[eventName] = void 0;
       }
     }
   }
@@ -84,15 +126,19 @@ var VueReactivity = (() => {
     if (key == "class") {
       patchClass(el, nextValue);
     } else if (key == "style") {
-      patchStyle();
+      patchStyle(el, prevValue, nextValue);
     } else if (/^on[^a-z]/.test(key)) {
-      patchEvent();
+      patchEvent(el, key, nextValue);
     } else {
-      patchAttr();
+      patchAttr(el, key, nextValue);
     }
   }
 
   // packages/runtime-dom/src/index.ts
   var renderOptions = Object.assign(nodeOps, { patchProp });
+  function render(vnode, container) {
+    createRenderer(renderOptions).render(vnode, container);
+  }
+  return __toCommonJS(src_exports);
 })();
 //# sourceMappingURL=runtime-dom.global.js.map
